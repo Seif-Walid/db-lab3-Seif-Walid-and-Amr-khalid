@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Books Catalog{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="list-head">
+    <div>
+      <h1>Books Catalog</h1>
+      <p class="muted">List of books currently in the library database (F2.1)</p>
+    </div>
+    <a href="{{ url_for('add_book') }}" class="btn btn-primary">+ Add Book</a>
+  </div>
+
+  {% if books %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">Cover</th>
+            <th style="width: 70px;">Book ID</th>
+            <th>Title</th>
+            <th style="width: 100px;">Price</th>
+            <th>Author ID &amp; Name</th>
+            <th style="width: 150px; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in books %}
+            <tr>
+              <td>
+                {% if b.cover %}
+                  <img src="{{ url_for('static', filename='uploads/' + b.cover) }}" alt="{{ b.title }}" class="img-thumb">
+                {% else %}
+                  <div class="img-placeholder">📖</div>
+                {% endif %}
+              </td>
+              <td><span class="badge badge-id">#{{ b.book_id }}</span></td>
+              <td><strong>{{ b.title }}</strong></td>
+              <td class="price-cell">${{ "%.2f"|format(b.price) }}</td>
+              <td>
+                <span class="badge badge-subtle">ID: {{ b.author_id }}</span>
+                {% if author_map.get(b.author_id) %}
+                  <span class="author-label">{{ author_map.get(b.author_id) }}</span>
+                {% endif %}
+              </td>
+              <td style="text-align: right;">
+                <div class="action-buttons">
+                  <a href="{{ url_for('edit_book', book_id=b.book_id) }}" class="btn btn-small btn-secondary">Edit</a>
+                  <form method="post" action="{{ url_for('delete_book', book_id=b.book_id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete book &quot;{{ b.title }}&quot;?');">
+                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span>Total books: <strong>{{ books|length }}</strong></span>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">📚</div>
+      <p><strong>No books found in the library.</strong></p>
+      <p class="muted">Get started by adding your first book.</p>
+      <a href="{{ url_for('add_book') }}" class="btn btn-primary" style="margin-top: 12px;">+ Add Book</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit Author" if is_edit else "Add Author" }}{% endblock %}
+
+{% block content %}
+<div class="card container-narrow">
+  <h1>{{ "Edit Author" if is_edit else "Add New Author" }}</h1>
+  <p class="muted">
+    {{ "Update author details and photo" if is_edit else "Enter details to register a new author (F2.2)" }}
+  </p>
+
+  <form method="post" enctype="multipart/form-data" data-validate="author" novalidate>
+    <label for="name">Author Name *</label>
+    <input type="text" id="name" name="name" value="{{ form.name }}" placeholder="e.g. Naguib Mahfouz" required autofocus class="{{ 'invalid' if errors.name }}">
+    <p class="error" data-for="name">{{ errors.name or '' }}</p>
+
+    <label for="country">Country</label>
+    <input type="text" id="country" name="country" value="{{ form.country }}" placeholder="e.g. Egypt" class="{{ 'invalid' if errors.country }}">
+    <p class="error" data-for="country">{{ errors.country or '' }}</p>
+
+    <label for="photo">Author Photo (Bonus: Image Upload)</label>
+    {% if is_edit and author.photo %}
+      <div class="current-image-preview">
+        <img src="{{ url_for('static', filename='uploads/' + author.photo) }}" alt="{{ author.name }}" class="img-preview-avatar">
+        <span class="muted" style="font-size: 0.85rem;">Current photo: {{ author.photo }}</span>
+      </div>
+    {% endif %}
+    <input type="file" id="photo" name="photo" accept="image/png, image/jpeg, image/jpg, image/gif, image/webp" class="{{ 'invalid' if errors.photo }}">
+    <p class="error" data-for="photo">{{ errors.photo or '' }}</p>
+    <p class="hint">Supported formats: JPG, PNG, GIF, WEBP (Max 16 MB)</p>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ "Update Author" if is_edit else "Save Author" }}</button>
+      <a href="{{ url_for('authors') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

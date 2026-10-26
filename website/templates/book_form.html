@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit Book" if is_edit else "Add Book" }}{% endblock %}
+
+{% block content %}
+<div class="card container-narrow">
+  <h1>{{ "Edit Book" if is_edit else "Add New Book" }}</h1>
+  <p class="muted">
+    {{ "Update book details, price and cover" if is_edit else "Enter details to catalog a new book (F2.2)" }}
+  </p>
+
+  {% if not authors and not is_edit %}
+    <div class="alert alert-warning" style="margin-bottom: 20px;">
+      ⚠️ No authors found in the database. Because every book must reference an author (foreign key constraint), please <a href="{{ url_for('add_author') }}">add an author first</a>.
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" data-validate="book" novalidate>
+    <label for="title">Book Title *</label>
+    <input type="text" id="title" name="title" value="{{ form.title }}" placeholder="e.g. Palace Walk" required autofocus class="{{ 'invalid' if errors.title }}">
+    <p class="error" data-for="title">{{ errors.title or '' }}</p>
+
+    <label for="price">Price ($) *</label>
+    <input type="number" id="price" name="price" step="0.01" min="0" value="{{ form.price }}" placeholder="e.g. 15.50" required class="{{ 'invalid' if errors.price }}">
+    <p class="error" data-for="price">{{ errors.price or '' }}</p>
+
+    <label for="author_id">Author (Foreign Key) *</label>
+    <select id="author_id" name="author_id" required class="select-input {{ 'invalid' if errors.author_id }}">
+      <option value="">-- Select an Author --</option>
+      {% for a in authors %}
+        <option value="{{ a.author_id }}" {% if form.author_id|string == a.author_id|string %}selected{% endif %}>
+          {{ a.name }} (Author ID: {{ a.author_id }})
+        </option>
+      {% endfor %}
+    </select>
+    <p class="error" data-for="author_id">{{ errors.author_id or '' }}</p>
+
+    <label for="cover">Book Cover (Bonus: Image Upload)</label>
+    {% if is_edit and book.cover %}
+      <div class="current-image-preview">
+        <img src="{{ url_for('static', filename='uploads/' + book.cover) }}" alt="{{ book.title }}" class="img-preview-cover">
+        <span class="muted" style="font-size: 0.85rem;">Current cover: {{ book.cover }}</span>
+      </div>
+    {% endif %}
+    <input type="file" id="cover" name="cover" accept="image/png, image/jpeg, image/jpg, image/gif, image/webp" class="{{ 'invalid' if errors.cover }}">
+    <p class="error" data-for="cover">{{ errors.cover or '' }}</p>
+    <p class="hint">Supported formats: JPG, PNG, GIF, WEBP (Max 16 MB)</p>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" {% if not authors and not is_edit %}disabled{% endif %}>
+        {{ "Update Book" if is_edit else "Save Book" }}
+      </button>
+      <a href="{{ url_for('books') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+================================================================================
+Lab 3: Foreign Keys and Simple SQL - Problem 1 Answers
+================================================================================
+Team Members:
+  1. Amr Khalid Mohamed       (ID: 2304120)
+  2. Seif Eldin Walid Ibrahim (ID: 2404028)
+Course:       Introduction to Database Systems (Fall 2026)
+Alexandria National University - Faculty of Engineering
+================================================================================
+
+--------------------------------------------------------------------------------
+Question 1.1:
+Insert a row in the DEPARTMENT table that references a row in the EMPLOYEE table.
+Then try to delete the referenced row. What will happen?
+--------------------------------------------------------------------------------
+
+[SQL Used]
+-- Step 1: Ensure an employee exists
+INSERT INTO EMPLOYEE (ssn, fname, lname, bdate, address, gender, salary, Dno)
+VALUES (105, 'Khaled', 'Nabil', '1992-05-10', '15 Port Said St, Alexandria', 'M', 7000.00, 1);
+
+-- Step 2: Insert a department that references that employee as manager (mgr_ssn)
+INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+VALUES (4, 'IT', 105, '2023-01-01');
+
+-- Step 3: Attempt to delete the referenced employee row
+DELETE FROM EMPLOYEE WHERE ssn = 105;
+
+[Output / Error Message]
+Step 1: Query OK, 1 row affected (0.01 sec)
+Step 2: Query OK, 1 row affected (0.01 sec)
+Step 3:
+ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`company`.`DEPARTMENT`, CONSTRAINT `DEPARTMENT_ibfk_1` FOREIGN KEY (`mgr_ssn`) REFERENCES `EMPLOYEE` (`ssn`))
+
+[Explanation]
+MySQL rejects the DELETE operation because of referential integrity.
+In our schema, DEPARTMENT.mgr_ssn is a foreign key referencing EMPLOYEE.ssn without an ON DELETE CASCADE or ON DELETE SET NULL clause (defaulting to RESTRICT / NO ACTION).
+Because row 105 in EMPLOYEE is a parent row referenced by a child row (department 4), deleting it would leave the foreign key in the DEPARTMENT table referencing a nonexistent employee (a dangling reference). To maintain referential integrity, MySQL forbids the deletion and throws error 1451.
+
+
+--------------------------------------------------------------------------------
+Question 1.2:
+Insert a row in the PROJECT table that references a row in the DEPARTMENT table
+that doesn't exist yet. What will happen?
+--------------------------------------------------------------------------------
+
+[SQL Used]
+-- Attempt to insert a project with Dno = 999 (which does not exist in DEPARTMENT)
+INSERT INTO PROJECT (Pnumber, Pname, Plocation, Dno)
+VALUES (99, 'SolarEnergy', 'Alexandria', 999);
+
+[Output / Error Message]
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`company`.`PROJECT`, CONSTRAINT `PROJECT_ibfk_1` FOREIGN KEY (`Dno`) REFERENCES `DEPARTMENT` (`Dnumber`))
+
+[Explanation]
+MySQL rejects the INSERT operation because of referential integrity.
+In our schema, PROJECT.Dno is a foreign key referencing DEPARTMENT.Dnumber. Under referential integrity constraints, any foreign key value must either be NULL or equal to an existing primary key value in the referenced table. Since department 999 does not exist in DEPARTMENT, MySQL prevents inserting an orphaned child record and throws error 1452.
+
+
+--------------------------------------------------------------------------------
+Question 1.3:
+If mgr_ssn and Dno are both NOT NULL, how will you insert the first row in
+EMPLOYEE or DEPARTMENT?
+--------------------------------------------------------------------------------
+
+[Problem Analysis]
+When both foreign key columns are NOT NULL, a circular dependency (chicken-and-egg problem) occurs:
+- You cannot insert into EMPLOYEE first because Dno cannot be NULL and must point to an existing DEPARTMENT.
+- You cannot insert into DEPARTMENT first because mgr_ssn cannot be NULL and must point to an existing EMPLOYEE.
+
+[Solutions]
+
+Method 1: Temporarily disable foreign key checks in MySQL (Recommended for MySQL)
+In MySQL, foreign key checks can be disabled for the current session, allowing both rows to be inserted, and then re-enabled.
+
+[SQL Used]
+SET FOREIGN_KEY_CHECKS = 0;
+
+INSERT INTO EMPLOYEE (ssn, fname, lname, bdate, address, gender, salary, Dno)
+VALUES (201, 'Amr', 'Mohamed', '1995-01-01', 'Alexandria', 'M', 9000.00, 10);
+
+INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+VALUES (10, 'Engineering', 201, '2024-01-01');
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+[Output]
+Query OK, 0 rows affected (0.00 sec) -- SET FOREIGN_KEY_CHECKS = 0
+Query OK, 1 row affected (0.01 sec) -- INSERT INTO EMPLOYEE
+Query OK, 1 row affected (0.01 sec) -- INSERT INTO DEPARTMENT
+Query OK, 0 rows affected (0.00 sec) -- SET FOREIGN_KEY_CHECKS = 1
+
+Verification Query:
+SELECT ssn, fname, lname, Dno FROM EMPLOYEE WHERE ssn = 201;
++-----+-------+---------+-----+
+| ssn | fname | lname   | Dno |
++-----+-------+---------+-----+
+| 201 | Amr   | Mohamed |  10 |
++-----+-------+---------+-----+
+
+SELECT Dnumber, Dname, mgr_ssn FROM DEPARTMENT WHERE Dnumber = 10;
++---------+-------------+---------+
+| Dnumber | Dname       | mgr_ssn |
++---------+-------------+---------+
+|      10 | Engineering |     201 |
++---------+-------------+---------+
+
+
+Method 2: Add the Foreign Key constraint AFTER inserting initial records
+Create one or both tables without the foreign key constraint (or create the column as nullable first), insert the mutually referencing rows, and then add the foreign key constraint (or alter the column to NOT NULL) using ALTER TABLE:
+
+[SQL Used]
+-- Assuming EMPLOYEE was created without the FK constraint on Dno:
+INSERT INTO EMPLOYEE (ssn, fname, lname, bdate, address, gender, salary, Dno)
+VALUES (301, 'Youssef', 'Tarek', '1993-04-12', 'Alexandria', 'M', 8000.00, 20);
+
+INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+VALUES (20, 'Marketing', 301, '2024-02-01');
+
+-- Add the foreign key constraint afterwards:
+ALTER TABLE EMPLOYEE ADD FOREIGN KEY (Dno) REFERENCES DEPARTMENT(Dnumber);
+
+
+Method 3: Standard SQL Transactions with Deferred Constraints (In DBMS supporting DEFERRABLE)
+In the SQL standard and database systems supporting deferred constraints (such as PostgreSQL or Oracle):
+Define the foreign key constraint as DEFERRABLE INITIALLY DEFERRED.
+Inside a single transaction (`START TRANSACTION; ... COMMIT;`), both rows are inserted. The foreign key constraint checks are postponed until the COMMIT statement, by which time both records exist, satisfying the constraint.
+(Note: MySQL/InnoDB does not support the DEFERRABLE clause, which is why Method 1 with SET FOREIGN_KEY_CHECKS = 0 is the standard practice in MySQL.)
+================================================================================

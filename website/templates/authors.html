@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Authors Directory{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="list-head">
+    <div>
+      <h1>Authors Directory</h1>
+      <p class="muted">List of authors registered in the library database (F2.1)</p>
+    </div>
+    <a href="{{ url_for('add_author') }}" class="btn btn-primary">+ Add Author</a>
+  </div>
+
+  {% if authors %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width: 70px;">Photo</th>
+            <th style="width: 70px;">ID</th>
+            <th>Name</th>
+            <th>Country</th>
+            <th style="width: 120px;">Books Count</th>
+            <th style="width: 150px; text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in authors %}
+            <tr>
+              <td>
+                {% if a.photo %}
+                  <img src="{{ url_for('static', filename='uploads/' + a.photo) }}" alt="{{ a.name }}" class="img-avatar">
+                {% else %}
+                  <div class="img-avatar-placeholder">✍️</div>
+                {% endif %}
+              </td>
+              <td><span class="badge badge-id">#{{ a.author_id }}</span></td>
+              <td><strong>{{ a.name }}</strong></td>
+              <td>
+                {% if a.country %}
+                  <span class="country-tag">🌍 {{ a.country }}</span>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-books">{{ book_counts.get(a.author_id, 0) }} books</span>
+              </td>
+              <td style="text-align: right;">
+                <div class="action-buttons">
+                  <a href="{{ url_for('edit_author', author_id=a.author_id) }}" class="btn btn-small btn-secondary">Edit</a>
+                  <form method="post" action="{{ url_for('delete_author', author_id=a.author_id) }}" style="display:inline;" onsubmit="return confirm('WARNING: Deleting author &quot;{{ a.name }}&quot; will also DELETE all books by this author (ON DELETE CASCADE)!\n\nAre you sure you want to proceed?');">
+                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span>Total authors: <strong>{{ authors|length }}</strong></span>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">✍️</div>
+      <p><strong>No authors registered yet.</strong></p>
+      <p class="muted">Add an author first before adding books.</p>
+      <a href="{{ url_for('add_author') }}" class="btn btn-primary" style="margin-top: 12px;">+ Add Author</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
