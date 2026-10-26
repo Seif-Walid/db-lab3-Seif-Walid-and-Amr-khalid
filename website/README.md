@@ -20,7 +20,7 @@ Built for *Introduction to Database Systems*, Alexandria National University, Fa
 Deliverables are organized in this repository according to the lab specification:
 
 ```
-lab3-2304120-2404028/
+db-lab3-Seif-Walid-and-Amr-khalid/
 ├── problem1_DDL.sql      # DDL scripts for database 'company' (Problem 1)
 ├── problem1_DML.sql      # INSERT queries: at least 3 records in each table (Problem 1)
 ├── problem1_Answers.txt  # SQL used and exact MySQL output/error for Q1.1–Q1.3
