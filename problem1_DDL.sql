@@ -1,17 +1,8 @@
--- ============================================================================
--- Lab 3: Foreign Keys and Simple SQL
--- Part I - Problem 1: The COMPANY database
--- ============================================================================
--- Team Members:
---   1. Amr Khalid Mohamed       (ID: 2304120)
---   2. Seif Eldin Walid Ibrahim (ID: 2404028)
--- ============================================================================
-
 DROP DATABASE IF EXISTS company;
 CREATE DATABASE company;
 USE company;
 
--- 1. Create EMPLOYEE table
+-- 1. Create EMPLOYEauthor_idE table
 -- Primary key: ssn
 CREATE TABLE EMPLOYEE (
     ssn             INT            NOT NULL,

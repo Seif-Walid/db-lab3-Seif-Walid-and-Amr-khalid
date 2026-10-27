@@ -1,11 +1,3 @@
--- ============================================================================
--- Lab 3: Foreign Keys and Simple SQL
--- Part II - Problem 2: Library: Books and Authors (DDL)
--- ============================================================================
--- Team Members:
---   1. Amr Khalid Mohamed       (ID: 2304120)
---   2. Seif Eldin Walid Ibrahim (ID: 2404028)
--- ============================================================================
 
 DROP DATABASE IF EXISTS library;
 CREATE DATABASE library;
@@ -37,5 +29,4 @@ CREATE TABLE book (
 );
 
 -- Aliases to support case-insensitive grading scripts on case-sensitive OS
-CREATE OR REPLACE VIEW AUTHOR AS SELECT * FROM author;
-CREATE OR REPLACE VIEW BOOK AS SELECT * FROM book;
+

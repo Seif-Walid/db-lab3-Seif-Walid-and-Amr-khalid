@@ -121,6 +121,47 @@ def save_upload(file_storage, prefix="img"):
     return unique_name
 
 
+def delete_upload(filename):
+    """Delete an image only if it is a file inside this app's uploads folder."""
+    if not filename:
+        return
+    safe_name = os.path.basename(str(filename))
+    path = os.path.abspath(os.path.join(UPLOAD_FOLDER, safe_name))
+    upload_root = os.path.abspath(UPLOAD_FOLDER)
+    if os.path.dirname(path) == upload_root and os.path.isfile(path):
+        try:
+            os.remove(path)
+        except OSError:
+            app.logger.exception("Could not delete uploaded image: %s", safe_name)
+
+
+def normalized_text(value):
+    """Normalize names/titles so casing and repeated whitespace don't create duplicates."""
+    return " ".join((value or "").split()).casefold()
+
+
+def find_duplicate_author(name, exclude_id=None):
+    """Return an existing author with the same normalized name, if any."""
+    authors = query("SELECT author_id, name FROM author", fetch="all")
+    for author in authors:
+        if exclude_id is not None and author["author_id"] == exclude_id:
+            continue
+        if normalized_text(author["name"]) == normalized_text(name):
+            return author
+    return None
+
+
+def find_duplicate_book(title, exclude_id=None):
+    """Return an existing book with the same normalized title, if any."""
+    books = query("SELECT book_id, title FROM book", fetch="all")
+    for book in books:
+        if exclude_id is not None and book["book_id"] == exclude_id:
+            continue
+        if normalized_text(book["title"]) == normalized_text(title):
+            return book
+    return None
+
+
 # ---------------------------------------------------------------- helpers & auth
 def login_required(view):
     @wraps(view)
@@ -330,6 +371,8 @@ def add_author():
             errors["name"] = "Name is required"
         elif len(name) > NAME_MAX:
             errors["name"] = f"Name must be at most {NAME_MAX} characters"
+        elif find_duplicate_author(name):
+            errors["name"] = "An author with this name already exists"
 
         if country and len(country) > COUNTRY_MAX:
             errors["country"] = f"Country must be at most {COUNTRY_MAX} characters"
@@ -371,6 +414,8 @@ def edit_author(author_id):
             errors["name"] = "Name is required"
         elif len(name) > NAME_MAX:
             errors["name"] = f"Name must be at most {NAME_MAX} characters"
+        elif find_duplicate_author(name, exclude_id=author_id):
+            errors["name"] = "An author with this name already exists"
 
         if country and len(country) > COUNTRY_MAX:
             errors["country"] = f"Country must be at most {COUNTRY_MAX} characters"
@@ -380,12 +425,15 @@ def edit_author(author_id):
             errors["photo"] = "Allowed image formats: png, jpg, jpeg, gif, webp"
 
         if not errors:
-            if photo_file and photo_file.filename:
-                photo_filename = save_upload(photo_file, prefix="author")
+            remove_photo = request.form.get("remove_photo") == "1"
+            if (photo_file and photo_file.filename) or remove_photo:
+                new_photo = save_upload(photo_file, prefix="author") if photo_file and photo_file.filename else None
                 query(
                     "UPDATE author SET name = %s, country = %s, photo = %s WHERE author_id = %s",
-                    (name, country or None, photo_filename, author_id)
+                    (name, country or None, new_photo, author_id)
                 )
+                if author.get("photo") and author.get("photo") != new_photo:
+                    delete_upload(author["photo"])
             else:
                 query(
                     "UPDATE author SET name = %s, country = %s WHERE author_id = %s",
@@ -401,9 +449,14 @@ def edit_author(author_id):
 @app.route("/authors/<int:author_id>/delete", methods=["POST"])
 def delete_author(author_id):
     """F2.5: Remove an author. (Foreign key ON DELETE CASCADE removes all their books too)."""
-    author = query("SELECT name FROM author WHERE author_id = %s", (author_id,), fetch="one")
+    author = query("SELECT name, photo FROM author WHERE author_id = %s", (author_id,), fetch="one")
     name = author["name"] if author else f"ID {author_id}"
-    query("DELETE FROM author WHERE author_id = %s", (author_id,))
+    if author:
+        related_books = query("SELECT cover FROM book WHERE author_id = %s", (author_id,), fetch="all")
+        query("DELETE FROM author WHERE author_id = %s", (author_id,))
+        delete_upload(author.get("photo"))
+        for related_book in related_books:
+            delete_upload(related_book.get("cover"))
     flash(f"Author '{name}' and all their books were deleted (CASCADE).", "success")
     return redirect(url_for("authors"))
 
@@ -440,6 +493,8 @@ def add_book():
             errors["title"] = "Title is required"
         elif len(title) > TITLE_MAX:
             errors["title"] = f"Title must be at most {TITLE_MAX} characters"
+        elif find_duplicate_book(title):
+            errors["title"] = "A book with this title already exists"
 
         price_val = None
         if not price_raw:
@@ -509,6 +564,8 @@ def edit_book(book_id):
             errors["title"] = "Title is required"
         elif len(title) > TITLE_MAX:
             errors["title"] = f"Title must be at most {TITLE_MAX} characters"
+        elif find_duplicate_book(title, exclude_id=book_id):
+            errors["title"] = "A book with this title already exists"
 
         price_val = None
         if not price_raw:
@@ -539,12 +596,15 @@ def edit_book(book_id):
             errors["cover"] = "Allowed image formats: png, jpg, jpeg, gif, webp"
 
         if not errors:
-            if cover_file and cover_file.filename:
-                cover_filename = save_upload(cover_file, prefix="book")
+            remove_cover = request.form.get("remove_cover") == "1"
+            if (cover_file and cover_file.filename) or remove_cover:
+                new_cover = save_upload(cover_file, prefix="book") if cover_file and cover_file.filename else None
                 query(
                     "UPDATE book SET title = %s, price = %s, author_id = %s, cover = %s WHERE book_id = %s",
-                    (title, float(price_val), author_id_val, cover_filename, book_id)
+                    (title, float(price_val), author_id_val, new_cover, book_id)
                 )
+                if book.get("cover") and book.get("cover") != new_cover:
+                    delete_upload(book["cover"])
             else:
                 query(
                     "UPDATE book SET title = %s, price = %s, author_id = %s WHERE book_id = %s",
@@ -560,9 +620,11 @@ def edit_book(book_id):
 @app.route("/books/<int:book_id>/delete", methods=["POST"])
 def delete_book(book_id):
     """F2.4: Remove a book."""
-    book = query("SELECT title FROM book WHERE book_id = %s", (book_id,), fetch="one")
+    book = query("SELECT title, cover FROM book WHERE book_id = %s", (book_id,), fetch="one")
     title = book["title"] if book else f"ID {book_id}"
-    query("DELETE FROM book WHERE book_id = %s", (book_id,))
+    if book:
+        query("DELETE FROM book WHERE book_id = %s", (book_id,))
+        delete_upload(book.get("cover"))
     flash(f"Book '{title}' was deleted successfully.", "success")
     return redirect(url_for("books"))
 
